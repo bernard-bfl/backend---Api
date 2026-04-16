@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Query 
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from contextlib import asynccontextmanager
 import httpx
 from datetime import datetime, timezone
 from database import database, engine, metadata 
@@ -10,7 +11,15 @@ import asyncio
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await database.connect()
+    yield
+    await database.disconnect()
+
+app = FastAPI(lifespan=lifespan)
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,13 +29,9 @@ app.add_middleware(
 )
 
 metadata.create_all(engine)
-@app.on_event("startup")
-async def startup():
-    await database.connect()
 
-@app.on_event("shutdown")
-async def shutdown():
-    await database.disconnect()
+
+
 
 def get_age_group(age:int) -> str:
     if age <= 12:
