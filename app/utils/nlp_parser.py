@@ -1,7 +1,7 @@
-import re 
+import re
 from typing import Optional
 
-COUNTRY_MAP: dict[str, str] = {
+COUNTRY_MAP = {
     "nigeria": "NG", "nigerian": "NG",
     "ghana": "GH", "ghanaian": "GH",
     "kenya": "KE", "kenyan": "KE",
@@ -58,6 +58,7 @@ COUNTRY_MAP: dict[str, str] = {
     "brazil": "BR", "brazilian": "BR",
     "australia": "AU", "australian": "AU",
 }
+
 AGE_GROUP_MAP = {
     "child": "child", "children": "child",
     "teenager": "teenager", "teenagers": "teenager",
@@ -66,93 +67,95 @@ AGE_GROUP_MAP = {
     "senior": "senior", "seniors": "senior",
 }
 
+
 class ParsedQuery:
     def __init__(self):
-        self.gender: Optional[str] = None
-        self.age_group: Optional[str] = None
-        self.country_id: Optional[str] = None
-        self.min_age: Optional[int] = None
-        self.max_age: Optional[int] = None
-        self.valid: bool = True
-        self.error: Optional[str] = None
+        self.gender = None
+        self.age_group = None
+        self.country_id = None
+        self.min_age = None
+        self.max_age = None
+        self.valid = True
+        self.error = None
 
-    def has_filters(self) -> bool:
-        return any(
-            v is not None
-            for v  in [
-                self.gender, self.age_group, self.country_id, self.min_age, self.max_age
-            ]
-        )
-    
+    def has_filters(self):
+        return any(v is not None for v in [
+            self.gender, self.age_group, self.country_id,
+            self.min_age, self.max_age,
+        ])
+
+
+def wb(word):
+    return r"\b" + re.escape(word) + r"\b"
+
+
 def parse_natural_language(query: str) -> ParsedQuery:
-        result = ParsedQuery()
-        q = query.lower().strip()
+    result = ParsedQuery()
+    q = query.lower().strip()
 
-        if not q:
-            result.valid = False
-            result.error = "Unable to interpret query"
-            return result
-        
-        #gender 
-        both = re.search(r"\b(male and female|female and male|both genders?)\b", q)
-        if both:
-            result.gender = None
-        elif re.search(r"\b(female|females|woman|women|girl|girls)\b", q):
-            result.gender = "female"
-        elif re.search(r"\b(male|males|man|men|boy|boys)\b", q):
-            result.gender = "male"
-
-        #agegroup
-        for kw, grp in AGE_GROUP_MAP.items():
-            pattern = r"\b" + re.escape(kw) + r"\b"
-            if re.search(pattern, q):
-                result.age_group = grp
-                break
-             
-        #descriptive age words
-        if re.search(r"\byoung\b", q):
-            result.min_age = 16
-            result.max_age = 24
-        
-        if re.search(r"\bmiddle[- ]aged\b", q):
-            result.min_age = 35
-            result.max_age = 54
-        if re.search(r"\b(old|elderly)\b", q):
-            result.min_age = 65
-
-        #numeric age expressions 
-        m = re.search(r"\bbetween\s+(\d+)\s+and\s+(\d+)\b", q)
-        if m:
-            result.min_age = int(m.group(1))
-            result.max_age = int(m.group(2))
-
-        m = re.search(r"\b(?:below|under|younger than|less than)s+(\d+)\b", q)
-        if m:
-            result.max_age = int(m.group(1))
-
-        m = re.search(r"\b(?above|over|older than|greater than|more than)\s+(\d+)\b", q)
-        if m:
-            result.min_age = int(m.group(1))
-        
-        m = re.search(r"\bagged?\s+(\d+)\b", q)
-        if m:
-            result.min_age = int(m.group(1))
-            result.max_age = int(m.group(1))
-
-        #country (longest match first)
-        sorted_countries = sorted(COUNTRY_MAP.keys(), key=len, reverse=True)
-        for name in sorted_countries:
-            pattern = r"\b" + re.escape(name) + r"\b"
-            if re.search(pattern, q):
-                result.country_id = COUNTRY_MAP[name]
-                break
-
-        #validity
-        if not result.has_filters():
-            result.valid = False
-            result.error = "Unable to interpret query"
-
+    if not q:
+        result.valid = False
+        result.error = "Unable to interpret query"
         return result
+
+    # Gender
+    if re.search(r"\b(male and female|female and male|both genders)\b", q):
+        result.gender = None
+    elif re.search(r"\b(female|females|woman|women|girl|girls)\b", q):
+        result.gender = "female"
+    elif re.search(r"\b(male|males|man|men|boy|boys)\b", q):
+        result.gender = "male"
+
+    # Age group
+    for kw, grp in AGE_GROUP_MAP.items():
+        if re.search(wb(kw), q):
+            result.age_group = grp
+            break
+
+    # Descriptive age words
+    if re.search(r"\byoung\b", q):
+        result.min_age = 16
+        result.max_age = 24
+
+    if re.search(r"\bmiddle.aged\b", q):
+        result.min_age = 35
+        result.max_age = 54
+
+    if re.search(r"\b(old|elderly)\b", q):
+        result.min_age = 65
+
+    # Numeric age expressions
+    m = re.search(r"\bbetween\s+(\d+)\s+and\s+(\d+)\b", q)
+    if m:
+        result.min_age = int(m.group(1))
+        result.max_age = int(m.group(2))
+
+    m = re.search(r"\b(above|over|older than|greater than|more than)\s+(\d+)\b", q)
+    
+    if m:
+        result.min_age = int(m.group(2))
+
+    m = re.search(r"\b(below|under|younger than|less than)\s+(\d+)\b", q)
+    if m:
+        result.max_age = int(m.group(2))
+
+    m = re.search(r"\baged?\s+(\d+)\b", q)
+    if m:
+        result.min_age = int(m.group(1))
+        result.max_age = int(m.group(1))
+
+    # Country
+    sorted_countries = sorted(COUNTRY_MAP.keys(), key=len, reverse=True)
+    for name in sorted_countries:
+        if re.search(wb(name), q):
+            result.country_id = COUNTRY_MAP[name]
+            break
+
+    if not result.has_filters():
+        result.valid = False
+        result.error = "Unable to interpret query"
+
+    return result
 
 
 
