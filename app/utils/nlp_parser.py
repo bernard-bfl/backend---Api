@@ -104,7 +104,8 @@ def parse_natural_language(query: str) -> ParsedQuery:
 
         #agegroup
         for kw, grp in AGE_GROUP_MAP.items():
-            if re.search(rf"\b{re.escape(kw)}\b", q):
+            pattern = r"\b" + re.escape(kw) + r"\b"
+            if re.search(pattern, q):
                 result.age_group = grp
                 break
              
@@ -141,7 +142,8 @@ def parse_natural_language(query: str) -> ParsedQuery:
         #country (longest match first)
         sorted_countries = sorted(COUNTRY_MAP.keys(), key=len, reverse=True)
         for name in sorted_countries:
-            if re.search(rf"\b{re.escape(name)}\b", q):
+            pattern = r"\b" + re.escape(name) + r"\b"
+            if re.search(pattern, q):
                 result.country_id = COUNTRY_MAP[name]
                 break
 
