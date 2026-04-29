@@ -60,4 +60,7 @@ async def init_db():
         await conn.execute(CREATE_TABLE_SQL)
         for index_sql in INDEXES:
             await conn.execute(index_sql)
+        #Importing here to avoid circular imports
+        from app.auth.models import CREATE_USERS_TABLE
+        await conn.execute(CREATE_USERS_TABLE)
     print("✅ Database tables and indexes ready.")
