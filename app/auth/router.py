@@ -105,6 +105,9 @@ async def callback(
             github_user.get("avatar_url"),
         )
         user = dict(user)
+        async with pool.acquire() as conn:
+            fresh_user = await conn.fetchrow("SELECT * FROM users WHERE id = $1", user["id"])
+            user = dict(fresh_user)
 
     # Create tokens
     access_token = create_access_token({"sub": str(user["id"]), "role": user["role"]})
