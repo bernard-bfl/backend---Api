@@ -11,11 +11,13 @@ async def get_pool() -> asyncpg.Pool:
         database_url = os.getenv("DATABASE_URL")
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql://", 1)
+        #using ssl only for public urls
+        use_ssl = "railway.internal" not in database_url
         _pool = await asyncpg.create_pool(
             dsn=database_url,
             min_size=2,
             max_size=10,
-            ssl="require",
+            ssl="require" if use_ssl else None,
             
         )
     return _pool
