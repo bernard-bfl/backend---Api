@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Depends, Query, HTTPException
 from typing import Optional
 import asyncpg
+from app.auth.dependencies import require_analyst
+from fastapi.responses import StreamingResponse
+import csv
+import io
 
 from app.db.database import get_pool
 from app.utils.nlp_parser import parse_natural_language
@@ -97,6 +101,7 @@ async def search_profiles(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=50),
     pool: asyncpg.Pool = Depends(get_pool),
+    current_user: dict = Depends(require_analyst)
 ):
     if not q or not q.strip():
         raise HTTPException(
@@ -145,6 +150,7 @@ async def get_profiles(
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=50),
     pool: asyncpg.Pool = Depends(get_pool),
+    current_user: dict = Depends(require_analyst),
 ):
     if sort_by not in VALID_SORT_FIELDS:
         raise HTTPException(
@@ -184,3 +190,39 @@ async def get_profiles(
         "total": total,
         "data": [row_to_dict(r) for r in rows],
     }
+
+
+
+@router.get("/export")
+async def export_profiles(
+    gender: Optional[str] = Query(None),
+    age_group: Optional[str] = Query(None),
+    country_id: Optional[str] = Query(None),
+    min_age: Optional[int] = Query(None, ge=0),
+    max_age: Optional[int] = Query(None, ge=0),
+    pool: asyncpg.Pool = Depends(get_pool),
+    current_user: dict = Depends(require_analyst),
+):
+    data_sql, params_data, count_sql, params_count = build_filter_query(
+        gender, age_group, country_id, min_age, max_age,
+        None, None, "created_at", "asc", 1, 10000,
+    )
+
+    async with pool.acquire() as conn:
+        rows = await conn.fetch(data_sql, *params_data)
+
+    output = io.StringIO()
+    writer = csv.DictWriter(output, fieldnames=[
+        "id", "name", "gender", "gender_probability", "age", "age_group",
+        "country_id", "country_name", "country_probability", "created_at"
+    ])
+    writer.writeheader()
+    for row in rows:
+        writer.writerow(row_to_dict(row))
+
+    output.seek(0)
+    return StreamingResponse(
+        io.BytesIO(output.getvalue().encode()),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=profiles.csv"}
+    )

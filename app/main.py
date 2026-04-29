@@ -9,6 +9,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.db.database import init_db, close_pool, get_pool
 from app.routes.profiles import router as profiles_router
+from app.routes.admin import router as admin_router
 from app.auth.router import router as auth_router
 
 limiter = Limiter(key_func=get_remote_address)
@@ -40,6 +41,7 @@ app.add_middleware(
 
 app.include_router(auth_router)
 app.include_router(profiles_router)
+app.include_router(admin_router)
 
 
 @app.middleware("http")
